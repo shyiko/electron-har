@@ -7,7 +7,7 @@ chrome.devtools.network.onRequestFinished.addListener(function (request) {
         return e.request.url !== LOAD_INDICATOR;
       });
       chrome.devtools.inspectedWindow.eval(
-        'require("electron").ipcRenderer.send("har-generation-succeeded", ' + JSON.stringify(har) + ');');
+        'require("electron").ipcRenderer.send("har-generation-succeeded", ' + JSON.stringify({log: har}) + ');');
     });
   }
 });
