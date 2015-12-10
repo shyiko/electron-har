@@ -33,7 +33,7 @@ var BrowserWindow = require('browser-window');
 var stringify = require('json-stable-stringify');
 
 app.commandLine.appendSwitch('disable-http-cache');
-app.dock.hide();
+app.dock && app.dock.hide();
 app.on('window-all-closed', function () {
   app.quit();
 });
