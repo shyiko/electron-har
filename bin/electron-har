@@ -1,0 +1,4 @@
+#!/bin/bash
+__dirname=$(cd ${0%/*} && pwd -P)
+$__dirname/../node_modules/electron-prebuilt/cli.js src "$@"
+
