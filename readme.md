@@ -1,6 +1,6 @@
 # electron-har
 
-A command-line tool for generating HTTP Archive (HAR) (based on [Electron](http://electron.atom.io/)). 
+A command-line tool for generating [HTTP Archive (HAR)](http://www.softwareishard.com/blog/har-12-spec/) (based on [Electron](http://electron.atom.io/)).
 
 ## Installation
 
