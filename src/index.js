@@ -87,21 +87,21 @@ app.on('ready', function () {
     });
   }
 
-  bw.webContents.on('devtools-opened', function () {
-    function notifyDevToolsExtensionOfLoad() {
+  function notifyDevToolsExtensionOfLoad(e) {
+    if (e.sender.getURL() != 'chrome://ensure-electron-resolution/') {
       bw.webContents.executeJavaScript('new Image().src = "https://did-finish-load/"');
     }
+  }
 
-    // fired regardless of the outcome (success or not)
-    bw.webContents.on('did-finish-load', notifyDevToolsExtensionOfLoad);
+  // fired regardless of the outcome (success or not)
+  bw.webContents.on('did-finish-load', notifyDevToolsExtensionOfLoad);
 
-    bw.webContents.on('did-fail-load', function (e, errorCode, errorDescription, url) {
-      if (url !== 'chrome://ensure-electron-resolution/' && url !== 'https://did-finish-load/') {
-        bw.webContents.removeListener('did-finish-load', notifyDevToolsExtensionOfLoad);
-        bw.webContents.executeJavaScript('require("electron").ipcRenderer.send("har-generation-failed", ' +
-          JSON.stringify({errorCode: errorCode, errorDescription: errorDescription}) + ')');
-      }
-    });
+  bw.webContents.on('did-fail-load', function (e, errorCode, errorDescription, url) {
+    if (url !== 'chrome://ensure-electron-resolution/' && url !== 'https://did-finish-load/') {
+      bw.webContents.removeListener('did-finish-load', notifyDevToolsExtensionOfLoad);
+      bw.webContents.executeJavaScript('require("electron").ipcRenderer.send("har-generation-failed", ' +
+        JSON.stringify({errorCode: errorCode, errorDescription: errorDescription}) + ')');
+    }
   });
 
   electron.ipcMain.on('devtools-loaded', function (event) {
