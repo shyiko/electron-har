@@ -2,13 +2,16 @@
 
 A command-line tool for generating [HTTP Archive (HAR)](http://www.softwareishard.com/blog/har-12-spec/) (based on [Electron](http://electron.atom.io/)).
 
-The data you get is identical to "Save All as HAR" from the Network pane of Developer Tools in Chromium.
+The data you get is identical to "Chromium -> Developer Tools -> Network pane -> Save All as HAR".
 
 ## Installation
 
 ```sh
 npm install -g electron-har
 ```
+
+> In order for Electron to work on Debian/Ubuntu (specifically on Debian 8/Ubuntu 12.04)
+following packages have to be installed `libgtk2.0-0 libgconf-2-4 libasound2 libxtst6 libxss1 libnss3`.
 
 ## Usage
 
