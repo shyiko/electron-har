@@ -105,7 +105,10 @@ app.on('ready', function () {
   });
 
   electron.ipcMain.on('devtools-loaded', function (event) {
-    setTimeout(function () { bw.loadURL(url); }, 0);
+    setTimeout(function () {
+      // bw.loadURL proved to be unreliable on Debian 8 (half of the time it has no effect)
+      bw.webContents.executeJavaScript('location = ' + JSON.stringify(url));
+    }, 0);
   });
 
   bw.openDevTools();
