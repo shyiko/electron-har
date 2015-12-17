@@ -15,7 +15,13 @@
     "electron-prebuilt": "^0.35.4"
   },
   "devDependencies": {
-    "electron-packager": "^5.1.1"
+    "electron-packager": "^5.1.1",
+    "chai": "^3.4.1",
+    "mocha": "^2.3.4",
+    "semistandard": "^7.0.4"
+  },
+  "semistandard": {
+    "globals": ["chrome", "describe", "it", "before"]
   },
   "scripts": {
     "clean": "rm -rf build",
@@ -26,7 +32,8 @@
     "tar:macosx": "cd build/electron-har-darwin-x64 && tar -cvzf ../electron-har-$npm_package_version-darwin-x64.tar.gz *",
     "tar:linux": "echo x64 ia32 | xargs -n1 -I{} sh -c \"cd build/electron-har-linux-{} && tar -cvzf ../electron-har-$npm_package_version-linux-{}.tar.gz *\"",
     "tar": "npm run tar:macosx && npm run tar:linux",
-    "release": "npm run build && npm run tar"
+    "release": "npm run build && npm run tar",
+    "test": "semistandard src/**/*.js test/**/*.js && ./node_modules/mocha/bin/mocha -R spec"
   },
   "keywords": [
     "electron",
