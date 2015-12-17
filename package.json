@@ -21,10 +21,10 @@
     "clean": "rm -rf build",
     "build:app": "mkdir -p build && cp -r src build/app && cp package.json build/app && cd build/app && npm i --production && npm un electron-prebuilt",
     "build:macosx": "electron-packager build/app electron-har --platform=darwin --arch=x64 --version=0.35.4 --out=build --overwrite --app-bundle-id=com.github.shyiko.ElectronHAR --app-category-type=public.app-category.developer-tools --app-version=$npm_package_version && mv build/electron-har-darwin-x64/electron-har.app/Contents/MacOS/{Electron,electron-har} && sed -i 's/>Electron</>electron-har</g' build/electron-har-darwin-x64/electron-har.app/Contents/Info.plist",
-    "build:linux": "electron-packager build/app electron-har --platform=linux --arch=x64 --version=0.35.4 --out=build --overwrite",
+    "build:linux": "electron-packager build/app electron-har --platform=linux --arch=x64,ia32 --version=0.35.4 --out=build --overwrite",
     "build": "npm run clean && npm run build:app && npm run build:macosx && npm run build:linux",
-    "tar:macosx": "(cd build/electron-har-darwin-x64 && tar -cvzf ../electron-har-$npm_package_version-darwin-x64.tar.gz *)",
-    "tar:linux": "(cd build/electron-har-linux-x64 && tar -cvzf ../electron-har-$npm_package_version-linux-x64.tar.gz *)",
+    "tar:macosx": "cd build/electron-har-darwin-x64 && tar -cvzf ../electron-har-$npm_package_version-darwin-x64.tar.gz *",
+    "tar:linux": "echo x64 ia32 | xargs -n1 -I{} sh -c \"cd build/electron-har-linux-{} && tar -cvzf ../electron-har-$npm_package_version-linux-{}.tar.gz *\"",
     "tar": "npm run tar:macosx && npm run tar:linux",
     "release": "npm run build && npm run tar"
   },
