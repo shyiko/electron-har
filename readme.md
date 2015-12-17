@@ -6,6 +6,10 @@ The data you get is identical to "Chromium -> Developer Tools -> Network pane ->
 
 ## Installation
 
+Prebuilt binaries can be found on the [release(s)](https://github.com/shyiko/electron-har/releases) page.
+
+You can also use [npm](https://www.npmjs.com/):
+
 ```sh
 npm install -g electron-har
 ```
