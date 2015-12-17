@@ -8,7 +8,8 @@ var yargs = require('yargs')
   .help('h').alias('h', 'help')
   .version(function () { return require('../package').version; })
   .strict();
-var argv = yargs.argv;
+var argv = process.env.ELECTRON_HAR_AS_NPM_MODULE ?
+  yargs.argv : yargs.parse(process.argv.slice(1));
 
 var url = argv._[0];
 if (argv.u) {
