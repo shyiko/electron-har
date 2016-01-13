@@ -24,8 +24,8 @@ var debug = !!argv.debug;
 var argvValidationError;
 if (!url) {
   argvValidationError = 'URL must be specified';
-} else if (!/^(http|https|file):\/\//.test(url)) {
-  argvValidationError = 'URL must contain the protocol prefix, e.g. the http:// or file://.';
+} else if (!/^(http|https):\/\//.test(url)) {
+  argvValidationError = 'URL must contain the protocol prefix, e.g. http://';
 }
 if (argvValidationError) {
   yargs.showHelp();
