@@ -1,121 +1,59 @@
-var yargs = require('yargs')
-  .usage('Usage: electron-har [options...] <url>')
-  // NOTE: when adding an option - keep it compatible with `curl` (if possible)
-  .describe('u', 'Username and password (divided by colon)').alias('u', 'user').nargs('u', 1)
-  .describe('o', 'Write to file instead of stdout').alias('o', 'output').nargs('o', 1)
-  .describe('m', 'Maximum time allowed for HAR generation (in seconds)').alias('m', 'max-time').nargs('m', 1)
-  .describe('debug', 'Show GUI (useful for debugging)').boolean('debug')
-  .help('h').alias('h', 'help')
-  .version(function () { return require('../package').version; })
-  .strict();
-var argv = process.env.ELECTRON_HAR_AS_NPM_MODULE ?
-  yargs.argv : yargs.parse(process.argv.slice(1));
-
-var url = argv._[0];
-if (argv.u) {
-  var usplit = argv.u.split(':');
-  var username = usplit[0];
-  var password = usplit[1] || '';
-}
-var outputFile = argv.output;
-var timeout = parseInt(argv.m, 10);
-var debug = !!argv.debug;
-
-var argvValidationError;
-if (!url) {
-  argvValidationError = 'URL must be specified';
-} else if (!/^(http|https|file):\/\//.test(url)) {
-  argvValidationError = 'URL must contain the protocol prefix, e.g. the http:// or file://.';
-}
-if (argvValidationError) {
-  yargs.showHelp();
-  console.error(argvValidationError);
-  process.exit(1);
-}
-
-var electron = require('electron');
-var app = require('app');
-var BrowserWindow = require('browser-window');
-var stringify = require('json-stable-stringify');
+var tmp = require('tmp');
+var assign = require('object-assign');
 var fs = require('fs');
+var execFile = require('child_process').execFile;
 
-if (timeout > 0) {
-  setTimeout(function () {
-    console.error('Timed out waiting for the HAR');
-    debug || app.exit(2);
-  }, timeout * 1000);
-}
-
-app.commandLine.appendSwitch('disable-http-cache');
-app.dock && app.dock.hide();
-app.on('window-all-closed', function () { app.quit(); });
-
-electron.ipcMain
-  .on('har-generation-succeeded', function (sender, event) {
-    var har = stringify(event, {space: 2});
-    if (outputFile) {
-      fs.writeFile(outputFile, har, function (err) {
-        if (err) {
-          console.error(err.message);
-          debug || app.exit(1);
-          return;
-        }
-        debug || app.quit();
-      });
-    } else {
-      console.log(har);
-      debug || app.quit();
+/**
+ * @param {string} url url (e.g. http://google.com)
+ * @param {object} o CLI options (NOTE: only properties not present in (or different from) CLI are described below)
+ * @param {object|string} o.user either object with 'name' and 'password' properties or a string (e.g. 'username:password')
+ * @param {string} o.user.name username
+ * @param {string} o.user.password password
+ * @param {function(err, json)} cb callback (NOTE: if err != null err.code will be the exit code (e.g. 3 - wrong usage,
+ * 4 - timeout, below zero - http://src.chromium.org/svn/trunk/src/net/base/net_error_list.h))
+ */
+module.exports = function electronHAR(url, o, cb) {
+  typeof o === 'function' && (cb = o, o = {});
+  // using temporary file to prevent messages like "Xlib:  extension ...", "libGL error ..."
+  // from cluttering stdout in a headless env (as in Xvfb).
+  tmp.file(function (err, path, fd, cleanup) {
+    if (err) {
+      return cb(err);
     }
-  })
-  .on('har-generation-failed', function (sender, event) {
-    console.error('An attempt to generate HAR resulted in error code ' + event.errorCode +
-      (event.errorDescription ? ' (' + event.errorDescription + ')' : '') +
-      '. \n(error codes defined in http://src.chromium.org/svn/trunk/src/net/base/net_error_list.h)');
-    debug || app.exit(event.errorCode);
-  });
-
-app.on('ready', function () {
-
-  BrowserWindow.removeDevToolsExtension('devtools-extension');
-  BrowserWindow.addDevToolsExtension(__dirname + '/devtools-extension');
-
-  var bw = new BrowserWindow({show: debug});
-
-  if (username) {
-    bw.webContents.on('login', function (event, request, authInfo, cb) {
-      event.preventDefault(); // default behavior is to cancel auth
-      cb(username, password);
+    cb = (function (cb) { return function () {
+      process.nextTick(Function.prototype.bind.apply(cb,
+        [null].concat(Array.prototype.slice.call(arguments))));
+      cleanup();
+    }; })(cb);
+    var oo = assign({}, o, {
+      output: path,
+      user: o.user === Object(o.user) ?
+        o.user.name + ':' + o.user.password : o.user
     });
-  }
-
-  function notifyDevToolsExtensionOfLoad(e) {
-    if (e.sender.getURL() != 'chrome://ensure-electron-resolution/') {
-      bw.webContents.executeJavaScript('new Image().src = "https://did-finish-load/"');
-    }
-  }
-
-  // fired regardless of the outcome (success or not)
-  bw.webContents.on('did-finish-load', notifyDevToolsExtensionOfLoad);
-
-  bw.webContents.on('did-fail-load', function (e, errorCode, errorDescription, url) {
-    if (url !== 'chrome://ensure-electron-resolution/' && url !== 'https://did-finish-load/') {
-      bw.webContents.removeListener('did-finish-load', notifyDevToolsExtensionOfLoad);
-      bw.webContents.executeJavaScript('require("electron").ipcRenderer.send("har-generation-failed", ' +
-        JSON.stringify({errorCode: errorCode, errorDescription: errorDescription}) + ')');
-    }
+    execFile(
+      __dirname + '/../bin/electron-har',
+      [url].concat(Object.keys(oo).reduce(function (r, k) {
+        r.push(k.length === 1 ? '-' + k : '--' + k);
+        oo[k] && r.push(oo[k]);
+        return r;
+      }, [])),
+      function (err, stdout, stderr) {
+        if (err) {
+          if (stderr) {
+            err.message = stderr.trim();
+          }
+          return cb(err);
+        }
+        fs.readFile(path, 'utf8', function (err, data) {
+          if (err) {
+            return cb(err);
+          }
+          try {
+            cb(null, JSON.parse(data));
+          } catch (e) {
+            return cb(e);
+          }
+        });
+      });
   });
-
-  electron.ipcMain.on('devtools-loaded', function (event) {
-    setTimeout(function () {
-      // bw.loadURL proved to be unreliable on Debian 8 (half of the time it has no effect)
-      bw.webContents.executeJavaScript('location = ' + JSON.stringify(url));
-    }, 0);
-  });
-
-  bw.openDevTools();
-
-  // any url will do, but make sure to call loadURL before 'devtools-opened'.
-  // otherwise require('electron') within child BrowserWindow will (most likely) fail
-  bw.loadURL('chrome://ensure-electron-resolution/');
-
-});
+};

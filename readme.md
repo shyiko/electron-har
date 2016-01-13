@@ -29,6 +29,53 @@ DISPLAY=:1 xvfb-run electron-har http://google.com -o google_com.har
 electron-har --help
 ```
 
+... or **pragmatically**
+
+```js
+var electronHAR = require('electron-har');
+
+electronHAR('http://enterprise.com/self-destruct', {
+  user: {
+    name: 'jean_luc_picard',
+    password: 'picard_4_7_alpha_tango'
+  }
+}, function (err, json) {
+  if (err) {
+    throw err;
+  }
+  console.log(json.log.entries);
+});
+```
+
+In a headless environment you might want to use [kesla/headless](https://github.com/kesla/node-headless) (which will start Xvfn for you). 
+
+```js
+var headless = require('headless');
+var electronHAR = require('electron-har');
+
+(function (cb) {
+  if (!process.env.DISPLAY) {
+    headless(function (err, proc, display) {
+      if (err) {
+        return cb(err);
+      }
+      process.env.DISPLAY = ':' + display;
+      cb(null, proc);
+    })
+  } else {
+    process.nextTick(cb);
+  }
+})(function (err, xvfb) {
+  if (err) {
+    throw err;
+  }
+  electronHAR(..., function (err, json) {
+    ...
+    xvfb && xvfb.kill();
+  })
+});
+```
+
 ## License
 
 [MIT License](https://github.com/shyiko/electron-har/blob/master/mit.license)

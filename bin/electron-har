@@ -5,7 +5,7 @@ process.env.ELECTRON_HAR_AS_NPM_MODULE = 1;
 require('child_process').
   spawn(
     require('electron-prebuilt'),
-    [__dirname + '/../src'].concat(process.argv.slice(2)),
+    [__dirname + '/../src/electron-har.js'].concat(process.argv.slice(2)),
     {stdio: 'inherit'}
   ).on('close', function (code) {
       process.exit(code);
