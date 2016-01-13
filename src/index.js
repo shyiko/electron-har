@@ -33,8 +33,8 @@ module.exports = function electronHAR(url, o, cb) {
     execFile(
       __dirname + '/../bin/electron-har',
       [url].concat(Object.keys(oo).reduce(function (r, k) {
-        r.push(k.length === 1 ? '-' + k : '--' + k);
-        oo[k] && r.push(oo[k]);
+        var v = oo[k];
+        v != null && r.push(k.length === 1 ? '-' + k : '--' + k, v);
         return r;
       }, [])),
       function (err, stdout, stderr) {
