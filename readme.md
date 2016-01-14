@@ -47,7 +47,7 @@ electronHAR('http://enterprise.com/self-destruct', {
 });
 ```
 
-In a headless environment you might want to use [kesla/headless](https://github.com/kesla/node-headless) (which will start Xvfn for you). 
+In a headless environment you might want to use [kesla/headless](https://github.com/kesla/node-headless) (which will start Xvfb for you). 
 
 ```js
 var headless = require('headless');
