@@ -2,6 +2,7 @@ var tmp = require('tmp');
 var assign = require('object-assign');
 var fs = require('fs');
 var execFile = require('child_process').execFile;
+var crossExecFile = require('cross-exec-file');
 
 /**
  * @param {string} url url (e.g. http://google.com)
@@ -30,7 +31,7 @@ module.exports = function electronHAR(url, o, cb) {
       user: o.user === Object(o.user) ?
         o.user.name + ':' + o.user.password : o.user
     });
-    execFile(
+    crossExecFile(
       __dirname + '/../bin/electron-har',
       [url].concat(Object.keys(oo).reduce(function (r, k) {
         var v = oo[k];
