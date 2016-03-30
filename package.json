@@ -11,11 +11,12 @@
   "bin": "./bin/electron-har",
   "main": "./src/index.js",
   "dependencies": {
-    "yargs": "^3.31.0",
-    "json-stable-stringify": "^1.0.0",
+    "cross-exec-file": "^1.0.0",
     "electron-prebuilt": "^0.35.4",
+    "json-stable-stringify": "^1.0.0",
     "object-assign": "^4.0.1",
-    "tmp": "^0.0.28"
+    "tmp": "^0.0.28",
+    "yargs": "^3.31.0"
   },
   "devDependencies": {
     "electron-packager": "^5.1.1",
@@ -24,7 +25,12 @@
     "semistandard": "^7.0.4"
   },
   "semistandard": {
-    "globals": ["chrome", "describe", "it", "before"]
+    "globals": [
+      "chrome",
+      "describe",
+      "it",
+      "before"
+    ]
   },
   "scripts": {
     "clean": "rm -rf build",
