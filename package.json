@@ -1,7 +1,7 @@
 {
   "name": "electron-har",
   "description": "A command-line tool for generating HTTP Archive (HAR) (based on Electron)",
-  "version": "0.1.8",
+  "version": "0.2.0",
   "author": "Stanley Shyiko <stanley.shyiko@gmail.com>",
   "license": "MIT",
   "repository": {
@@ -12,7 +12,7 @@
   "main": "./src/index.js",
   "dependencies": {
     "cross-exec-file": "^1.0.0",
-    "electron-prebuilt": "^0.35.4",
+    "electron-prebuilt": "^0.35.6",
     "json-stable-stringify": "^1.0.0",
     "object-assign": "^4.0.1",
     "tmp": "^0.0.28",
