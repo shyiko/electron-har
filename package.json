@@ -8,6 +8,12 @@
     "type": "git",
     "url": "https://github.com/shyiko/electron-har"
   },
+  "contributors": [
+    {
+      "name": "Brandtley McMinn",
+      "email": "labs@gbox.name"
+    }
+  ],
   "bin": "./bin/electron-har",
   "main": "./src/index.js",
   "dependencies": {
