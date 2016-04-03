@@ -9,6 +9,9 @@ var crossExecFile = require('cross-exec-file');
  * @param {object|string} o.user either object with 'name' and 'password' properties or a string (e.g. 'username:password')
  * @param {string} o.user.name username
  * @param {string} o.user.password password
+ * @param {string} o.user-agent user device profile name
+ * @param {string} o.limit-rate network throttling profile name
+ * @param {string} o.landscape force device profile to be landscape
  * @param {function(err, json)} callback callback (NOTE: if err != null err.code will be the exit code (e.g. 3 - wrong usage,
  * 4 - timeout, below zero - http://src.chromium.org/svn/trunk/src/net/base/net_error_list.h))
  */
@@ -42,7 +45,8 @@ module.exports = function electronHAR(url, options, callback) {
         options.user.name + ':' + options.user.password :
         options.user,
       'user-agent': options['user-agent'] ? options['user-agent'] : null,
-      'limit-rate': options['limit-rate'] ? options['limit-rate'] : null
+      'limit-rate': options['limit-rate'] ? options['limit-rate'] : null,
+      landscape: options['landscape'] ? options['landscape'] : null
     });
 
     // initialize electron-har process

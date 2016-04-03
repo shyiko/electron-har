@@ -1,3 +1,5 @@
+/* global require, process, __dirname */
+
 var devices  = require('./profiles/devices');
 var networks = require('./profiles/networks');
 
@@ -19,17 +21,23 @@ var yargs = require('yargs')
     .alias('m', 'max-time')
     .nargs('m', 1)
 
-  .describe('A', 'User Agent profile to use:\n  - ' + Object.keys(devices).join('\n  - '))
+  .describe('A', 'User Agent profile to use: (OPTIONS)\n  - ' + devices.getNames().join('\n  - '))
     .alias('A', 'user-agent')
     .nargs('A', 1)
 
-  .describe('Y', 'Network throttling profile to use:\n  - ' + Object.keys(networks).join('\n  - '))
+  .describe('Y', 'Network throttling profile to use: (OPTIONS)\n  - ' + Object.keys(networks).join('\n  - '))
     .alias('Y', 'limit-rate')
     .nargs('Y', 1)
 
+  .describe('landscape', 'Force landscape dimensions for device profile')
+    .boolean('landscape')
+
   .describe('debug', 'Show GUI (useful for debugging)')
     .boolean('debug')
-  .help('h').alias('h', 'help')
+
+  .help('h')
+    .alias('h', 'help')
+
   .version(function () { return require('../package').version; })
   .strict();
 
@@ -38,18 +46,21 @@ var argv = process.env.ELECTRON_HAR_AS_NPM_MODULE ?
 
 var url = argv._[0];
 
+// capture CLI argument values
 if (argv.u) {
-  var usplit = argv.u.split(':');
-  var username = usplit[0];
-  var password = usplit[1] || '';
+  var usplit    = argv.u.split(':');
+  var username  = usplit[0];
+  var password  = usplit[1] || '';
 }
 
-var outputFile = argv.output;
-var timeout = parseInt(argv.m, 10);
-var debug = !!argv.debug;
-var userAgent = argv.A;
-var limitRate = argv.Y;
+var outputFile      = argv.output;
+var timeout         = parseInt(argv.m, 10);
+var debug           = !!argv.debug;
+var userAgent       = argv.A;
+var limitRate       = argv.Y;
+var forceLandscape  = argv.landscape;
 
+// validate required arguments
 var argvValidationError;
 
 if (!url) {
@@ -67,12 +78,14 @@ if (argvValidationError) {
   process.exit(3);
 }
 
-var electron = require('electron');
-var app = require('app');
-var BrowserWindow = require('browser-window');
-var stringify = require('json-stable-stringify');
-var fs = require('fs');
+//
+var electron        = require('electron');
+var app             = require('app');
+var BrowserWindow   = require('browser-window');
+var stringify   = require('json-stable-stringify');
+var fs          = require('fs');
 
+// set timeout delay for HAR file response
 if (timeout > 0) {
   setTimeout(function () {
     console.error('Timed out waiting for the HAR');
@@ -117,18 +130,47 @@ app.on('ready', function () {
     show: debug
   };
 
+  // check for device profile
+  var deviceProfile = null;
+
+  if (userAgent) {
+    deviceProfile = devices.getDevice(userAgent);
+  }
+
+  // if device profile couldn't be found
+  if (userAgent && !deviceProfile) {
+    console.error('>> Error:', 'Specified user-agent', '"' + userAgent + '"', 'is not defined.');
+    process.exit(3);
+  }
+
+  // check if --landscape AND -A is defined
+  if (forceLandscape && !deviceProfile) {
+    console.error('>> Error:', 'Cannot use `--landscape` without `-A` flag.\n    Cannot force landscape orientation without device profile definition.');
+    process.exit(3);
+  }
+
   // if a user agent profile has been selected, apply it
-  if (userAgent && devices[userAgent]) {
-    winConfig.device = devices[userAgent];
+  if (deviceProfile) {
+
+    winConfig.orientation = deviceProfile.device.modes[0].orientation;
 
     // override browser window dimensions with device specs
-    winConfig.width = winConfig.device.width;
-    winConfig.height = winConfig.device.height;
+    if (forceLandscape) {
+      winConfig.width  = deviceProfile.device.screen.horizontal.width;
+      winConfig.height = deviceProfile.device.screen.horizontal.height;
+
+    } else {
+      // use default (first) device mode orientation
+      winConfig.width  = deviceProfile.device.screen[winConfig.orientation].width;
+      winConfig.height = deviceProfile.device.screen[winConfig.orientation].height;
+    }
+
   }
 
   // initialize the browser window instance
   var bw = new BrowserWindow(winConfig);
 
+  // if user provided login credentials
   if (username) {
     bw.webContents.on('login', function (event, request, authInfo, cb) {
       event.preventDefault(); // default behavior is to cancel auth
@@ -136,20 +178,23 @@ app.on('ready', function () {
     });
   }
 
-  // assign the user agent string
-  if (winConfig.device) {
+  // check for network profile
+  var networkProfile = networks[limitRate];
 
-    // TODO: figure out how to apply custom user-agent header to session
-    // bw.webContents.session.defaultSession.onBeforeSendHeaders(function(details, callback) {
-    //   details.requestHeaders['User-Agent'] = winConfig.device.userAgentString;
-    //   callback({cancel: false, requestHeaders: details.requestHeaders});
-    // });
+  // if network profile couldn't be found
+  if (limitRate && !networkProfile) {
+    console.error('>> Error:', 'Specified network', '"' + limitRate + '"', 'is not defined.');
+    process.exit(3);
   }
 
   // set the network throttling profile
   if (limitRate) {
-    bw.webContents.session.enableNetworkEmulation(networks[limitRate]);
-    // console.log(networks[limitRate]);
+    bw.webContents.session.enableNetworkEmulation(networkProfile);
+  }
+
+  // Assign the user-agent header
+  if (deviceProfile) {
+    bw.webContents.setUserAgent(deviceProfile.device['user-agent']);
   }
 
   function notifyDevToolsExtensionOfLoad(e) {
@@ -181,4 +226,5 @@ app.on('ready', function () {
   // any url will do, but make sure to call loadURL before 'devtools-opened'.
   // otherwise require('electron') within child BrowserWindow will (most likely) fail
   bw.loadURL('chrome://ensure-electron-resolution/');
+
 });
