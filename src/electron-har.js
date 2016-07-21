@@ -2,6 +2,9 @@ var yargs = require('yargs')
   .usage('Usage: electron-har [options...] <url>')
   // NOTE: when adding an option - keep it compatible with `curl` (if possible)
   .describe('u', 'Username and password (divided by colon)').alias('u', 'user').nargs('u', 1)
+  .describe('b', 'Pass the data to the HTTP server as a cookie. ' +
+    'It is supposedly the data previously received from the server in a "Set-Cookie:" line.  ' +
+    'The data should be in theformat "NAME1=VALUE1; NAME2=VALUE2"').alias('b', 'cookie').nargs('b', 1)
   .describe('o', 'Write to file instead of stdout').alias('o', 'output').nargs('o', 1)
   .describe('m', 'Maximum time allowed for HAR generation (in seconds)').alias('m', 'max-time').nargs('m', 1)
   .describe('debug', 'Show GUI (useful for debugging)').boolean('debug')
@@ -16,6 +19,9 @@ if (argv.u) {
   var usplit = argv.u.split(':');
   var username = usplit[0];
   var password = usplit[1] || '';
+}
+if (argv.b) {
+  var cookie = argv.b;
 }
 var outputFile = argv.output;
 var timeout = parseInt(argv.m, 10);
@@ -39,6 +45,7 @@ var app = require('app');
 var BrowserWindow = require('browser-window');
 var stringify = require('json-stable-stringify');
 var fs = require('fs');
+var cookieParse = require('cookie').parse;
 
 if (timeout > 0) {
   setTimeout(function () {
@@ -89,34 +96,64 @@ app.on('ready', function () {
     });
   }
 
-  function notifyDevToolsExtensionOfLoad(e) {
-    if (e.sender.getURL() != 'chrome://ensure-electron-resolution/') {
-      bw.webContents.executeJavaScript('new Image().src = "https://did-finish-load/"');
+  if (cookie) {
+    var cookies = cookieParse(cookie);
+    var keys = Object.keys(cookies);
+    if (keys.length) {
+      var count = 0;
+      keys.forEach(function (name) {
+        var cookieObj = {
+          url: url,
+          name: name,
+          value: cookies[name]
+        };
+        bw.webContents.session.cookies.set(cookieObj, function (err) {
+          if (err) {
+            console.error('An attempt to set cookie ' + JSON.stringify(cookieObj) + ' resulted in error' + err);
+            debug || app.exit();
+          }
+          count++;
+          if (count === keys.length) {
+            loadDevToolsAndUrl();
+          }
+        });
+      });
+    } else {
+      loadDevToolsAndUrl();
     }
+  } else {
+    loadDevToolsAndUrl();
   }
 
-  // fired regardless of the outcome (success or not)
-  bw.webContents.on('did-finish-load', notifyDevToolsExtensionOfLoad);
-
-  bw.webContents.on('did-fail-load', function (e, errorCode, errorDescription, url) {
-    if (url !== 'chrome://ensure-electron-resolution/' && url !== 'https://did-finish-load/') {
-      bw.webContents.removeListener('did-finish-load', notifyDevToolsExtensionOfLoad);
-      bw.webContents.executeJavaScript('require("electron").ipcRenderer.send("har-generation-failed", ' +
-        JSON.stringify({errorCode: errorCode, errorDescription: errorDescription}) + ')');
+  function loadDevToolsAndUrl() {
+    function notifyDevToolsExtensionOfLoad(e) {
+      if (e.sender.getURL() != 'chrome://ensure-electron-resolution/') {
+        bw.webContents.executeJavaScript('new Image().src = "https://did-finish-load/"');
+      }
     }
-  });
 
-  electron.ipcMain.on('devtools-loaded', function (event) {
-    setTimeout(function () {
-      // bw.loadURL proved to be unreliable on Debian 8 (half of the time it has no effect)
-      bw.webContents.executeJavaScript('location = ' + JSON.stringify(url));
-    }, 0);
-  });
+    // fired regardless of the outcome (success or not)
+    bw.webContents.on('did-finish-load', notifyDevToolsExtensionOfLoad);
 
-  bw.openDevTools();
+    bw.webContents.on('did-fail-load', function (e, errorCode, errorDescription, url) {
+      if (url !== 'chrome://ensure-electron-resolution/' && url !== 'https://did-finish-load/') {
+        bw.webContents.removeListener('did-finish-load', notifyDevToolsExtensionOfLoad);
+        bw.webContents.executeJavaScript('require("electron").ipcRenderer.send("har-generation-failed", ' +
+          JSON.stringify({errorCode: errorCode, errorDescription: errorDescription}) + ')');
+      }
+    });
 
-  // any url will do, but make sure to call loadURL before 'devtools-opened'.
-  // otherwise require('electron') within child BrowserWindow will (most likely) fail
-  bw.loadURL('chrome://ensure-electron-resolution/');
+    electron.ipcMain.on('devtools-loaded', function (event) {
+      setTimeout(function () {
+        // bw.loadURL proved to be unreliable on Debian 8 (half of the time it has no effect)
+        bw.webContents.executeJavaScript('location = ' + JSON.stringify(url));
+      }, 0);
+    });
 
+    bw.openDevTools();
+
+    // any url will do, but make sure to call loadURL before 'devtools-opened'.
+    // otherwise require('electron') within child BrowserWindow will (most likely) fail
+    bw.loadURL('chrome://ensure-electron-resolution/');
+  }
 });
