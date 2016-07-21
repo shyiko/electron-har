@@ -2,9 +2,7 @@ var yargs = require('yargs')
   .usage('Usage: electron-har [options...] <url>')
   // NOTE: when adding an option - keep it compatible with `curl` (if possible)
   .describe('u', 'Username and password (divided by colon)').alias('u', 'user').nargs('u', 1)
-  .describe('b', 'Pass the data to the HTTP server as a cookie. ' +
-    'It is supposedly the data previously received from the server in a "Set-Cookie:" line.  ' +
-    'The data should be in theformat "NAME1=VALUE1; NAME2=VALUE2"').alias('b', 'cookie').nargs('b', 1)
+  .describe('b', 'Cookie ("cookie_name=value") (multiple entries should be separated with the semicolon)').alias('b', 'cookie').nargs('b', 1)
   .describe('o', 'Write to file instead of stdout').alias('o', 'output').nargs('o', 1)
   .describe('m', 'Maximum time allowed for HAR generation (in seconds)').alias('m', 'max-time').nargs('m', 1)
   .describe('debug', 'Show GUI (useful for debugging)').boolean('debug')
@@ -20,9 +18,7 @@ if (argv.u) {
   var username = usplit[0];
   var password = usplit[1] || '';
 }
-if (argv.b) {
-  var cookie = argv.b;
-}
+var cookie = argv.b;
 var outputFile = argv.output;
 var timeout = parseInt(argv.m, 10);
 var debug = !!argv.debug;
@@ -109,7 +105,8 @@ app.on('ready', function () {
         };
         bw.webContents.session.cookies.set(cookieObj, function (err) {
           if (err) {
-            console.error('An attempt to set cookie ' + JSON.stringify(cookieObj) + ' resulted in error' + err);
+            console.error('An attempt to set cookie ' + JSON.stringify(cookieObj) +
+              ' resulted in error (' + err.message + ")");
             debug || app.exit();
           }
           count++;
