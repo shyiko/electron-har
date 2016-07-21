@@ -40,7 +40,7 @@
     "build:linux": "electron-packager build/app electron-har --platform=linux --arch=x64,ia32 --version=0.35.4 --out=build --overwrite",
     "build": "npm run clean && npm run build:app && npm run build:macosx && npm run build:linux",
     "tar:macosx": "cd build/electron-har-darwin-x64 && tar -cvzf ../electron-har-$npm_package_version-darwin-x64.tar.gz *",
-    "tar:linux": "echo x64 ia32 | xargs -n1 -I{} sh -c \"cd build/electron-har-linux-{} && tar -cvzf ../electron-har-$npm_package_version-linux-{}.tar.gz *\"",
+    "tar:linux": "echo x64 ia32 | xargs -n1 sh -c 'cd build/electron-har-linux-$0 && tar -cvzf ../electron-har-$npm_package_version-linux-$0.tar.gz *'",
     "tar": "npm run tar:macosx && npm run tar:linux",
     "release": "npm run build && npm run tar",
     "test": "semistandard src/**/*.js test/**/*.js && ./node_modules/mocha/bin/mocha -R spec"
