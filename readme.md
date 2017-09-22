@@ -4,6 +4,8 @@ A command-line tool for generating [HTTP Archive (HAR)](http://www.softwareishar
 
 The data you get is identical to "Chromium -> Developer Tools -> Network pane -> Save All as HAR".
 
+**SECURITY** considerations: [#11](https://github.com/shyiko/electron-har/issues/11).
+
 ## Installation
 
 Prebuilt binaries can be found on the [release(s)](https://github.com/shyiko/electron-har/releases) page.
