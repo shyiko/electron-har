@@ -17,9 +17,10 @@ npm install -g electron-har
 > In order for Electron to work on Debian/Ubuntu (specifically on Debian 8/Ubuntu 12.04)
 following packages have to be installed `libgtk2.0-0 libgconf-2-4 libasound2 libxtst6 libxss1 libnss3`.
 
-> **NOTE** for Linux users: you might need to --disable-gpu.
 
 ## Usage
+
+> **NOTE** for Linux users: you might need to --disable-gpu
 
 ```sh
 # NOTE: on Linux --disable-gpu might be needed
