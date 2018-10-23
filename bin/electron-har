@@ -1,12 +1,13 @@
 #!/usr/bin/env node
 
-process.env.ELECTRON_HAR_AS_NPM_MODULE = 1;
+process.env.ELECTRON_HAR_AS_NPM_MODULE = 1
+process.env.ELECTRON_DISABLE_SECURITY_WARNINGS = 1
 
 require('child_process').
   spawn(
-    require('electron-prebuilt'),
+    require('electron'),
     [__dirname + '/../src/electron-har.js'].concat(process.argv.slice(2)),
-    {stdio: 'inherit'}
-  ).on('close', function (code) {
-      process.exit(code);
-    });
+    {stdio: ['inherit', 'inherit', process.env.ELECTRON_ENABLE_LOGGING ? 'inherit' : 'ignore', process.stderr]}
+  ).on('close', (code) => {
+      process.exit(code)
+    })

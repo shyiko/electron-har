@@ -4,8 +4,6 @@ A command-line tool for generating [HTTP Archive (HAR)](http://www.softwareishar
 
 The data you get is identical to "Chromium -> Developer Tools -> Network pane -> Save All as HAR".
 
-**SECURITY** considerations: [#11](https://github.com/shyiko/electron-har/issues/11).
-
 ## Installation
 
 Prebuilt binaries can be found on the [release(s)](https://github.com/shyiko/electron-har/releases) page.
@@ -19,10 +17,16 @@ npm install -g electron-har
 > In order for Electron to work on Debian/Ubuntu (specifically on Debian 8/Ubuntu 12.04)
 following packages have to be installed `libgtk2.0-0 libgconf-2-4 libasound2 libxtst6 libxss1 libnss3`.
 
+> **NOTE** for Linux users: you might need to --disable-gpu.
+
 ## Usage
 
 ```sh
+# NOTE: on Linux --disable-gpu might be needed
 electron-har http://google.com # writes HAR to stdout
+
+# in case something doesn't look right / not working
+ELECTRON_ENABLE_LOGGING=1 electron-har --disable-gpu --show http://google.com 2>electron.log
 
 # in a headless environment (CI agent on Linux?) - xvfb-run will do just fine 
 DISPLAY=:1 xvfb-run electron-har http://google.com -o google_com.har
@@ -34,7 +38,7 @@ electron-har --help
 ... or **pragmatically**
 
 ```js
-var electronHAR = require('electron-har');
+const electronHAR = require('electron-har')
 
 electronHAR('http://enterprise.com/self-destruct', {
   user: {
@@ -43,41 +47,41 @@ electronHAR('http://enterprise.com/self-destruct', {
   }
 }, function (err, json) {
   if (err) {
-    throw err;
+    throw err
   }
-  console.log(json.log.entries);
-});
+  console.log(json.log.entries)
+})
 ```
 
 In a headless environment you might want to use [kesla/headless](https://github.com/kesla/node-headless) (which will start Xvfb for you). 
 
 ```js
-var headless = require('headless');
-var electronHAR = require('electron-har');
+const headless = require('headless')
+const electronHAR = require('electron-har')
 
 (function (cb) {
   if (!process.env.DISPLAY) {
     headless(function (err, proc, display) {
       if (err) {
-        return cb(err);
+        return cb(err)
       }
-      process.env.DISPLAY = ':' + display;
-      cb(null, proc);
+      process.env.DISPLAY = ':' + display
+      cb(null, proc)
     })
   } else {
-    process.nextTick(cb);
+    process.nextTick(cb)
   }
 })(function (err, xvfb) {
   if (err) {
-    throw err;
+    throw err
   }
   electronHAR(..., function (err, json) {
     ...
-    xvfb && xvfb.kill();
+    xvfb && xvfb.kill()
   })
-});
+})
 ```
 
 ## License
 
-[MIT License](https://github.com/shyiko/electron-har/blob/master/mit.license)
+[MIT License](https://github.com/shyiko/electron-har/blob/master/LICENSE)

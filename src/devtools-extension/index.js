@@ -1,15 +1,21 @@
-var LOAD_INDICATOR = 'https://did-finish-load/';
+const DID_FINISH_LOAD = 'https://did-finish-load/'
 
-chrome.devtools.network.onRequestFinished.addListener(function (request) {
-  if (request.request.url === LOAD_INDICATOR) {
-    chrome.devtools.network.getHAR(function (har) {
-      har.entries = har.entries.filter(function (e) {
-        return e.request.url !== LOAD_INDICATOR;
-      });
+chrome.devtools.network.onRequestFinished.addListener((e) => {
+  if (e.request.url === DID_FINISH_LOAD) {
+    chrome.devtools.network.getHAR((har) => {
+      har.entries = har.entries.filter((e) => e.request.url !== DID_FINISH_LOAD)
+      const e = JSON.stringify({
+        log: har
+      })
       chrome.devtools.inspectedWindow.eval(
-        'require("electron").ipcRenderer.send("har-generation-succeeded", ' + JSON.stringify({log: har}) + ');');
-    });
+        `window.electronHAR.emit("har-generation-succeeded", ${e})`
+      )
+    })
   }
-});
+})
 
-chrome.devtools.inspectedWindow.eval('require("electron").ipcRenderer.send("devtools-loaded");');
+chrome.devtools.inspectedWindow.eval(
+  'window.electronHAR.emit("devtools-loaded")'
+)
+
+console.log('Electron HAR DevTools Extension loaded')

@@ -1,7 +1,7 @@
 {
   "name": "devtools-extension",
   "description": "Electron HAR DevTools Extension",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "manifest_version": 2,
   "devtools_page": "index.html"
 }

@@ -1,156 +1,209 @@
-var yargs = require('yargs')
+const pkg = (() => {
+  try {
+    return require('./package.json')
+  } catch (e) {
+    return require('../package.json')
+  }
+})()
+
+// workaround for https://github.com/electron/electron/issues/12438
+const console = process.env.ELECTRON_HAR_AS_NPM_MODULE
+  ? new (require('console').Console)(
+    process.stdout,
+    require('fs').createWriteStream(null, { fd: 3 })
+  )
+  : global.console
+
+const yargs = require('yargs')
   .usage('Usage: electron-har [options...] <url>')
   // NOTE: when adding an option - keep it compatible with `curl` (if possible)
   .describe('u', 'Username and password (divided by colon)').alias('u', 'user').nargs('u', 1)
   .describe('b', 'Cookie ("cookie_name=value") (multiple entries should be separated with the semicolon)').alias('b', 'cookie').nargs('b', 1)
   .describe('o', 'Write to file instead of stdout').alias('o', 'output').nargs('o', 1)
   .describe('m', 'Maximum time allowed for HAR generation (in seconds)').alias('m', 'max-time').nargs('m', 1)
-  .describe('debug', 'Show GUI (useful for debugging)').boolean('debug')
+  .describe('debug').hide('debug').boolean('debug') // deprecated
+  .describe('show', 'Show browser window').boolean('show')
+  .describe('disable-gpu', 'Disable hardware acceleration').boolean('disable-gpu')
   .help('h').alias('h', 'help')
-  .version(function () { return require('../package').version; })
-  .strict();
-var argv = process.env.ELECTRON_HAR_AS_NPM_MODULE ?
-  yargs.argv : yargs.parse(process.argv.slice(1));
+  .version(pkg.version)
+  .strict()
+const argv = process.env.ELECTRON_HAR_AS_NPM_MODULE
+  ? yargs.argv
+  : yargs.parse(process.argv.slice(1))
 
-var url = argv._[0];
-if (argv.u) {
-  var usplit = argv.u.split(':');
-  var username = usplit[0];
-  var password = usplit[1] || '';
-}
-var cookie = argv.b;
-var outputFile = argv.output;
-var timeout = parseInt(argv.m, 10);
-var debug = !!argv.debug;
-
-var argvValidationError;
+const url = argv._[0]
+const [username, password] = argv.u ? argv.u.split(':').concat('') : [null, null]
+const cookie = argv.b
+const outputFile = argv.output
+const timeout = parseInt(argv.m, 10)
+const show = !!argv.show || !!argv.debug
+let argvValidationError
 if (!url) {
-  argvValidationError = 'URL must be specified';
+  argvValidationError = 'URL must be specified'
 } else if (!/^(http|https):\/\//.test(url)) {
-  argvValidationError = 'URL must contain the protocol prefix, e.g. http://';
+  argvValidationError = 'URL must contain the protocol prefix, e.g. https://'
 }
 if (argvValidationError) {
-  yargs.showHelp();
-  console.error(argvValidationError);
+  yargs.showHelp()
+  console.error(argvValidationError)
   // http://tldp.org/LDP/abs/html/exitcodes.html
-  process.exit(3);
+  process.exit(3)
 }
 
-var electron = require('electron');
-var app = require('app');
-var BrowserWindow = require('browser-window');
-var stringify = require('json-stable-stringify');
-var fs = require('fs');
-var cookieParse = require('cookie').parse;
+const electron = require('electron')
+const {
+  app,
+  BrowserWindow,
+  session
+} = electron
+const stringify = require('json-stable-stringify')
+const cookieParse = require('cookie').parse
+const fs = require('fs')
+const path = require('path')
 
 if (timeout > 0) {
-  setTimeout(function () {
-    console.error('Timed out waiting for the HAR');
-    debug || app.exit(4);
-  }, timeout * 1000);
+  setTimeout(() => {
+    console.error('Timed out waiting for page to load')
+    show || app.exit(4)
+  }, timeout * 1000)
 }
 
-app.commandLine.appendSwitch('disable-http-cache');
-app.dock && app.dock.hide();
-app.on('window-all-closed', function () { app.quit(); });
+if (argv['disable-gpu']) {
+  app.disableHardwareAcceleration()
+}
+// https://github.com/electron/electron/blob/master/docs/api/chrome-command-line-switches.md
+app.commandLine.appendSwitch('disable-http-cache')
+app.dock && app.dock.hide()
+app.on('window-all-closed', () => {
+  app.quit()
+})
 
 electron.ipcMain
-  .on('har-generation-succeeded', function (sender, event) {
-    var har = stringify(event, {space: 2});
+  .on('har-generation-succeeded', (sender, event) => {
+    const har = stringify(event, {
+      space: 2
+    })
     if (outputFile) {
-      fs.writeFile(outputFile, har, function (err) {
+      fs.writeFile(outputFile, har, (err) => {
         if (err) {
-          console.error(err.message);
-          debug || app.exit(5);
-          return;
+          console.error(err.message)
+          show || app.exit(5)
+          return
         }
-        debug || app.quit();
-      });
+        show || app.quit()
+      })
     } else {
-      console.log(har);
-      debug || app.quit();
+      console.log(har)
+      show || app.quit()
     }
   })
-  .on('har-generation-failed', function (sender, event) {
-    console.error('An attempt to generate HAR resulted in error code ' + event.errorCode +
+  .on('har-generation-failed', (sender, event) => {
+    console.error('HAR generation failed: ' + event.errorCode +
       (event.errorDescription ? ' (' + event.errorDescription + ')' : '') +
-      '. \n(error codes defined in http://src.chromium.org/svn/trunk/src/net/base/net_error_list.h)');
-    debug || app.exit(event.errorCode);
-  });
+      '\n(error codes defined in http://src.chromium.org/svn/trunk/src/net/base/net_error_list.h)')
+    show || app.exit(event.errorCode)
+  })
 
-app.on('ready', function () {
+app.on('ready', () => {
+  BrowserWindow.removeDevToolsExtension('devtools-extension')
+  BrowserWindow.addDevToolsExtension(path.join(__dirname, 'devtools-extension'))
 
-  BrowserWindow.removeDevToolsExtension('devtools-extension');
-  BrowserWindow.addDevToolsExtension(__dirname + '/devtools-extension');
+  const bw = new BrowserWindow({
+    show: show,
+    webPreferences: {
+      // https://electronjs.org/docs/tutorial/security#2-disable-nodejs-integration-for-remote-content
+      nodeIntegration: false,
+      preload: path.join(__dirname, 'preload.js')
+    }
+  })
 
-  var bw = new BrowserWindow({show: debug});
+  // https://electronjs.org/docs/tutorial/security#4-handle-session-permission-requests-from-remote-content
+  session.defaultSession
+    .setPermissionRequestHandler((webContents, permission, cb) => {
+      cb(false) // eslint-disable-line standard/no-callback-literal
+    })
 
   if (username) {
-    bw.webContents.on('login', function (event, request, authInfo, cb) {
-      event.preventDefault(); // default behavior is to cancel auth
-      cb(username, password);
-    });
+    bw.webContents.on('login', (event, request, authInfo, cb) => {
+      event.preventDefault() // default behavior is to cancel auth
+      cb(username, password)
+    })
   }
 
-  if (cookie) {
-    var cookies = cookieParse(cookie);
-    var keys = Object.keys(cookies);
-    if (keys.length) {
-      var count = 0;
-      keys.forEach(function (name) {
-        var cookieObj = {
-          url: url,
-          name: name,
-          value: cookies[name]
-        };
-        bw.webContents.session.cookies.set(cookieObj, function (err) {
-          if (err) {
-            console.error('An attempt to set cookie ' + JSON.stringify(cookieObj) +
-              ' resulted in error (' + err.message + ")");
-            debug || app.exit();
-          }
-          count++;
-          if (count === keys.length) {
-            loadDevToolsAndUrl();
-          }
-        });
-      });
-    } else {
-      loadDevToolsAndUrl();
-    }
+  const cookies = cookie
+    ? cookieParse(cookie)
+    : {}
+  if (cookies.length) {
+    const keys = Object.keys(cookies)
+    let count = 0
+    keys.forEach((name) => {
+      const cookieObj = {
+        url: url,
+        name: name,
+        value: cookies[name]
+      }
+      bw.webContents.session.cookies.set(cookieObj, (err) => {
+        if (err) {
+          console.error(`Failed to set cookie ${JSON.stringify(cookieObj)} (${err.message})`)
+          show || app.exit()
+        }
+        count++
+        if (count === keys.length) {
+          loadDevToolsAndUrl()
+        }
+      })
+    })
   } else {
-    loadDevToolsAndUrl();
+    loadDevToolsAndUrl()
   }
 
-  function loadDevToolsAndUrl() {
-    function notifyDevToolsExtensionOfLoad(e) {
-      if (e.sender.getURL() != 'chrome://ensure-electron-resolution/') {
-        bw.webContents.executeJavaScript('new Image().src = "https://did-finish-load/"');
+  function loadDevToolsAndUrl () {
+    function notifyDevToolsExtensionOfLoad (e) {
+      if (e.sender.getURL() !== 'https://ensure-electron-resolution/') {
+        bw.webContents.executeJavaScript('new Image().src = "https://did-finish-load/"')
       }
     }
+
+    // `204 page "pending"` workaround
+    let hitContent = false
+    // https://electronjs.org/docs/api/web-request#webrequestonheadersreceivedfilter-listener
+    bw.webContents.session.webRequest.onHeadersReceived((req, cb) => {
+      cb({ // eslint-disable-line standard/no-callback-literal
+        cancel: false
+      })
+      if (hitContent) {
+        return
+      }
+      hitContent = Math.trunc(req.statusCode / 100) !== 3 && req.statusCode !== 204
+      if (req.statusCode === 204) {
+        setTimeout(() => {
+          bw.webContents.executeJavaScript('new Image().src = "https://did-finish-load/"')
+        })
+      }
+    })
 
     // fired regardless of the outcome (success or not)
-    bw.webContents.on('did-finish-load', notifyDevToolsExtensionOfLoad);
+    bw.webContents.on('did-finish-load', notifyDevToolsExtensionOfLoad)
 
-    bw.webContents.on('did-fail-load', function (e, errorCode, errorDescription, url) {
-      if (url !== 'chrome://ensure-electron-resolution/' && url !== 'https://did-finish-load/') {
-        bw.webContents.removeListener('did-finish-load', notifyDevToolsExtensionOfLoad);
-        bw.webContents.executeJavaScript('require("electron").ipcRenderer.send("har-generation-failed", ' +
-          JSON.stringify({errorCode: errorCode, errorDescription: errorDescription}) + ')');
+    bw.webContents.on('did-fail-load', (e, errorCode, errorDescription, url) => {
+      if (url !== 'https://ensure-electron-resolution/' && url !== 'https://did-finish-load/') {
+        bw.webContents.removeListener('did-finish-load', notifyDevToolsExtensionOfLoad)
+        const e = JSON.stringify({ errorCode: errorCode, errorDescription: errorDescription })
+        bw.webContents.executeJavaScript(`window.electronHAR.emit("har-generation-failed", ${e})`)
       }
-    });
+    })
 
-    electron.ipcMain.on('devtools-loaded', function (event) {
-      setTimeout(function () {
+    electron.ipcMain.on('devtools-loaded', (event) => {
+      setTimeout(() => {
         // bw.loadURL proved to be unreliable on Debian 8 (half of the time it has no effect)
-        bw.webContents.executeJavaScript('location = ' + JSON.stringify(url));
-      }, 0);
-    });
+        bw.webContents.executeJavaScript('location = ' + JSON.stringify(url))
+      })
+    })
 
-    bw.openDevTools();
+    bw.openDevTools()
 
     // any url will do, but make sure to call loadURL before 'devtools-opened'.
     // otherwise require('electron') within child BrowserWindow will (most likely) fail
-    bw.loadURL('chrome://ensure-electron-resolution/');
+    bw.loadURL('https://ensure-electron-resolution/')
   }
-});
+})

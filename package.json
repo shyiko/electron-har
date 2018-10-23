@@ -1,7 +1,7 @@
 {
   "name": "electron-har",
   "description": "A command-line tool for generating HTTP Archive (HAR) (based on Electron)",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "author": "Stanley Shyiko <stanley.shyiko@gmail.com>",
   "license": "MIT",
   "repository": {
@@ -12,38 +12,39 @@
   "main": "./src/index.js",
   "dependencies": {
     "cookie": "^0.3.1",
-    "cross-exec-file": "^1.0.0",
-    "electron-prebuilt": "^0.35.4",
     "json-stable-stringify": "^1.0.0",
-    "object-assign": "^4.0.1",
     "tmp": "^0.0.28",
-    "yargs": "^3.31.0"
+    "yargs": "^12.0.2"
   },
   "devDependencies": {
-    "electron-packager": "^5.1.1",
-    "chai": "^3.4.1",
-    "mocha": "^2.3.4",
-    "semistandard": "^7.0.4"
+    "create-test-server": "^2.4.0",
+    "electron": "^3.0.5",
+    "electron-packager": "^12.2.0",
+    "standard": "^12.0.1",
+    "tap": "^12.0.1"
   },
-  "semistandard": {
+  "standard": {
     "globals": [
       "chrome",
       "describe",
       "it",
-      "before"
+      "before",
+      "after"
     ]
   },
   "scripts": {
     "clean": "rm -rf build",
-    "build:app": "mkdir -p build && cp -r src build/app && cp package.json build/app && cd build/app && npm i --production && npm un electron-prebuilt",
-    "build:macosx": "electron-packager build/app electron-har --platform=darwin --arch=x64 --version=0.35.4 --out=build --overwrite --app-bundle-id=com.github.shyiko.ElectronHAR --app-category-type=public.app-category.developer-tools --app-version=$npm_package_version && mv build/electron-har-darwin-x64/electron-har.app/Contents/MacOS/{Electron,electron-har} && sed -i 's/>Electron</>electron-har</g' build/electron-har-darwin-x64/electron-har.app/Contents/Info.plist",
-    "build:linux": "electron-packager build/app electron-har --platform=linux --arch=x64,ia32 --version=0.35.4 --out=build --overwrite",
+    "build:app": "mkdir -p build && cp -r src build/app && cp package.json build/app && cd build/app && node -e \"const p=require('./package.json');p.main='electron-har.js';require('fs').writeFileSync('./package.json',JSON.stringify(p),'utf8')\" && npm i --production",
+    "build:macosx": "electron-packager build/app electron-har --platform=darwin --arch=x64 --out=build --overwrite --app-bundle-id=com.github.shyiko.ElectronHAR --app-category-type=public.app-category.developer-tools --app-version=$npm_package_version",
+    "build:linux": "electron-packager build/app electron-har --platform=linux --arch=x64,ia32 --out=build --overwrite",
     "build": "npm run clean && npm run build:app && npm run build:macosx && npm run build:linux",
     "tar:macosx": "cd build/electron-har-darwin-x64 && tar -cvzf ../electron-har-$npm_package_version-darwin-x64.tar.gz *",
     "tar:linux": "echo x64 ia32 | xargs -n1 sh -c 'cd build/electron-har-linux-$0 && tar -cvzf ../electron-har-$npm_package_version-linux-$0.tar.gz *'",
     "tar": "npm run tar:macosx && npm run tar:linux",
     "release": "npm run build && npm run tar",
-    "test": "semistandard src/**/*.js test/**/*.js && ./node_modules/mocha/bin/mocha -R spec"
+    "lint": "standard -v",
+    "lint-fix": "standard --fix -v",
+    "test": "tap -J test/**/*.test.js"
   },
   "keywords": [
     "electron",
