@@ -133,9 +133,10 @@ app.on('ready', () => {
   const cookies = cookie
     ? cookieParse(cookie)
     : {}
-  if (cookies.length) {
-    const keys = Object.keys(cookies)
-    let count = 0
+
+  const keys = Object.keys(cookies)
+  if (keys.length) {
+    let count = 0;
     keys.forEach((name) => {
       const cookieObj = {
         url: url,
